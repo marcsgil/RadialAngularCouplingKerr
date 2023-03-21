@@ -1,4 +1,5 @@
 using FreeParaxialPropagation
+using CUDA
 using KerrPropagation
 using LinearAlgebra,JLD2
 
