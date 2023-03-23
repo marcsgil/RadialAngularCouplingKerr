@@ -45,7 +45,7 @@ function C2(z,p,l)
     sum( c(q,l) * Φ(z,r) * Λ(3,r,p,l) * Λ(3,r,q,l) for q in 0:abs(l), r in 0:10^3 ) * im / 4
 end
 ##
-χ = 1000
+g = 1000
 l₀ = 2
 Z = 1
 ##
@@ -54,12 +54,12 @@ zs = LinRange(0,Z,64)
 zs_scatter = LinRange(0,Z,length(zs)÷4)
 
 ψ₀ = lg(rs,rs,0,l=l₀) |> CuArray
-ψs = kerr_propagation(ψ₀,rs,rs,zs,2048,χ=χ,k=2)
+ψs = kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=2)
 FreeParaxialPropagation.animate(ψs)
 
 
 ψ0s = free_propagation(ψ₀,rs,rs,zs,k=2)
-δψs = (ψs - ψ0s)/χ
+δψs = (ψs - ψ0s)/g
             
 Cs = stack(overlap(lg(rs,rs,zs,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
 
@@ -72,7 +72,7 @@ p = plot(zs,Cs,
     xformatter = x->10*x,
     yformatter = y->1000*y,
     label=[L"p = %$p" for _ in 1:1, p in 0:size(Cs,2)-1],
-    annotations = ((.15,.85), Plots.text(L"g=%$χ",15)),
+    annotations = ((.15,.85), Plots.text(L"g=%$g",15)),
     legend = :outerright)
 scatter!(p,zs_scatter,C1s,line=:dash,marker=:diamond)
 ##
@@ -85,17 +85,17 @@ q = plot(zs,modified_Cs,
     xformatter = x->x,
     yformatter = y->100*y,
     label=[L"p = %$p" for _ in 1:1, p in 0:size(modified_Cs,2)-1],
-    title = L"l=%$l₀, g = %$χ")
+    title = L"l=%$l₀, g = %$g")
 ##
 
         
-#png(p,"Plots/l=$(l₀)_g=$(χ)_z=$(last(zs))")
+#png(p,"Plots/l=$(l₀)_g=$(g)_z=$(last(zs))")
 
-#png(q,"MPlots/l=$(l₀)_g=$(χ)_z=$(last(zs))")
+#png(q,"MPlots/l=$(l₀)_g=$(g)_z=$(last(zs))")
 
 
-jldsave("Data/l=$(l₀)_g=$(χ)_z=$Z.jld2";ψs,Cs,C1s,C2s,zs,zs_scatter,χ,l₀)
-save("Gifs/l=$(l₀)_g=$(χ)_z=$Z.gif",FreeParaxialPropagation.animate(ψs,ratio=.5))
+jldsave("Data/l=$(l₀)_g=$(g)_z=$Z.jld2";ψs,Cs,C1s,C2s,zs,zs_scatter,g,l₀)
+save("Gifs/l=$(l₀)_g=$(g)_z=$Z.gif",FreeParaxialPropagation.animate(ψs,ratio=.5))
 ##
 
 function make_plot(zs,zs_scatter,Cs,Ds,g,show_tick_legend,isfirst)
