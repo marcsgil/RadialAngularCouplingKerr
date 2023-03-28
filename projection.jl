@@ -7,8 +7,8 @@ using Plots,LaTeXStrings
 
 default()
 default(label=false,width=3,size=(600,400), markersize = 4.5, msw=0, 
-palette=:Set1_5, tickfontsize=10, labelfontsize=10,
-legendfontsize=8, fontfamily="Computer Modern",dpi=1000,grid=false,framestyle = :box)
+palette=:Set1_5, tickfontsize=10, labelfontsize=12,
+legendfontsize=10, fontfamily="Computer Modern",dpi=1000,grid=false,framestyle = :box)
 ##
 overlap(ψ₁,ψ₂,area_element) = area_element*abs(ψ₁ ⋅ ψ₂)
 
@@ -32,7 +32,6 @@ function c(p,l)
     2 * (-1)^p * binomial(2L,L-p) * √binomial(L+p,p) / ( π * 3^((3L+1)/2) )
 end
 
-
 function Φ(z,p)
     iszero(p) ? atan(z) : ( 1- ( (1-im*z)/(1+im*z) )^p ) / (2im*p)
 end
@@ -45,47 +44,48 @@ function C2(z,p,l)
     sum( c(q,l) * Φ(z,r) * Λ(3,r,p,l) * Λ(3,r,q,l) for q in 0:abs(l), r in 0:10^3 ) * im / 4
 end
 ##
-g = 1000
+g = .1
 l₀ = 2
-Z = 1
+Z = .01
 ##
-rs = LinRange(-3,3,512)
+rs = LinRange(-5,5,1024)
 zs = LinRange(0,Z,64)
 zs_scatter = LinRange(0,Z,length(zs)÷4)
 
 ψ₀ = lg(rs,rs,0,l=l₀) |> CuArray
-ψs = kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=2)
+ψs = kerr_propagation(ψ₀,rs,rs,zs_scatter,2048,g=g,k=2)
 FreeParaxialPropagation.animate(ψs)
 
 
-ψ0s = free_propagation(ψ₀,rs,rs,zs,k=2)
+ψ0s = free_propagation(ψ₀,rs,rs,zs_scatter,k=2)
 δψs = (ψs - ψ0s)/g
             
-Cs = stack(overlap(lg(rs,rs,zs,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
+Cs = stack(overlap(lg(rs,rs,zs_scatter,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
 
-C1s = [abs(C1(z,p,l₀)) for z in zs_scatter, p in 0:abs(l₀)]
-C2s = [abs(C2(z,p,l₀)) for z in zs_scatter, p in 0:abs(l₀)+2]
+C1s = [abs(C1(z,p,l₀)) for z in zs, p in 0:abs(l₀)]
+C2s = [abs(C2(z,p,l₀)) for z in zs, p in 0:abs(l₀)+2]
 ##
-p = plot(zs,Cs,
-    xlabel=L"10 \times Z",
-    ylabel=L"1000 \times |C_{p%$l₀} \ |/g ",
-    xformatter = x->10*x,
-    yformatter = y->1000*y,
-    label=[L"p = %$p" for _ in 1:1, p in 0:size(Cs,2)-1],
-    annotations = ((.15,.85), Plots.text(L"g=%$g",15)),
-    legend = :outerright)
-scatter!(p,zs_scatter,C1s,line=:dash,marker=:diamond)
-##
-
-##
-modified_Cs = hcat(ntuple(i->Cs[i,:]/zs[i], size(Cs,1) )...)'
-q = plot(zs,modified_Cs,
-    xlabel=L"Z",
-    ylabel=L"100 \times |c_p \ |/g ",
+p = scatter(zs_scatter,Cs,
+    xlabel=L"\tilde{z}",
+    ylabel=L"| c_{p%$l₀} \ | \ \ \ \left( 10^{-2} \ \right)",
     xformatter = x->x,
     yformatter = y->100*y,
-    label=[L"p = %$p" for _ in 1:1, p in 0:size(modified_Cs,2)-1],
-    title = L"l=%$l₀, g = %$g")
+    annotations = ((.15,.85), Plots.text(L"g=%$g",15)),
+    marker=:diamond
+    )
+plot!(p,zs,C1s)
+##
+
+##
+q = scatter(zs_scatter,Cs,
+    xlabel=L"\tilde{z}",
+    ylabel=L"| c_{p%$l₀} \ | \ \ \ \left( 10^{-2} \ \right)",
+    xformatter = x->x,
+    yformatter = y->100*y,
+    annotations = ((.15,.85), Plots.text(L"g=%$g",15)),
+    marker=:diamond
+    )
+plot!(q,zs,C1s)
 ##
 
         
