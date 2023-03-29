@@ -43,89 +43,49 @@ end
 function C2(z,p,l)
     sum( c(q,l) * Φ(z,r) * Λ(3,r,p,l) * Λ(3,r,q,l) for q in 0:abs(l), r in 0:10^3 ) * im / 4
 end
+
+function get_Cs(g,l₀,Z,R)
+    rs = LinRange(-R,R,1024)
+    zs = LinRange(0,Z,64)
+    zs_scatter = LinRange(0,Z,length(zs)÷4)
+
+    ψ₀ = lg(rs,rs,0,l=l₀) |> CuArray
+    ψs = kerr_propagation(ψ₀,rs,rs,zs_scatter,2048,g=g,k=2)
+
+
+    ψ0s = free_propagation(ψ₀,rs,rs,zs_scatter,k=2)
+    δψs = (ψs - ψ0s)/g
+                
+    Cs = stack(overlap(lg(rs,rs,zs_scatter,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
+
+    C1s = [abs(C1(z,p,l₀)) for z in zs, p in 0:abs(l₀)]
+    C2s = [abs(C2(z,p,l₀)) for z in zs, p in 0:abs(l₀)+2]
+    
+    zs,zs_scatter,Cs,C1s,C2s
+end
 ##
-g = .1
-l₀ = 2
-Z = .01
-##
-rs = LinRange(-5,5,1024)
-zs = LinRange(0,Z,64)
-zs_scatter = LinRange(0,Z,length(zs)÷4)
+zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(1,2,5,15)
 
-ψ₀ = lg(rs,rs,0,l=l₀) |> CuArray
-ψs = kerr_propagation(ψ₀,rs,rs,zs_scatter,2048,g=g,k=2)
-FreeParaxialPropagation.animate(ψs)
-
-
-ψ0s = free_propagation(ψ₀,rs,rs,zs_scatter,k=2)
-δψs = (ψs - ψ0s)/g
-            
-Cs = stack(overlap(lg(rs,rs,zs_scatter,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
-
-C1s = [abs(C1(z,p,l₀)) for z in zs, p in 0:abs(l₀)]
-C2s = [abs(C2(z,p,l₀)) for z in zs, p in 0:abs(l₀)+2]
-##
-p = scatter(zs_scatter,Cs,
+p = scatter(zs_scatter1,Cs,
     xlabel=L"\tilde{z}",
     ylabel=L"| c_{p%$l₀} \ | \ \ \ \left( 10^{-2} \ \right)",
     xformatter = x->x,
     yformatter = y->100*y,
-    annotations = ((.15,.85), Plots.text(L"g=%$g",15)),
+    annotations = ((.15,.85), Plots.text(L"g=1",15)),
     marker=:diamond
     )
-plot!(p,zs,C1s)
+plot!(p,zs1,C2s)
 ##
-
-##
-q = scatter(zs_scatter,Cs,
+zs2,zs_scatter2,Ds,D1s,D2s = get_Cs(10,2,5,15)
+q = scatter(zs_scatter2,Ds,
     xlabel=L"\tilde{z}",
     ylabel=L"| c_{p%$l₀} \ | \ \ \ \left( 10^{-2} \ \right)",
     xformatter = x->x,
     yformatter = y->100*y,
-    annotations = ((.15,.85), Plots.text(L"g=%$g",15)),
+    annotations = ((.15,.85), Plots.text(L"g=10",15)),
     marker=:diamond
     )
-plot!(q,zs,C1s)
+plot!(q,zs2,D2s)
 ##
 
-        
-#png(p,"Plots/l=$(l₀)_g=$(g)_z=$(last(zs))")
-
-#png(q,"MPlots/l=$(l₀)_g=$(g)_z=$(last(zs))")
-
-
-jldsave("Data/l=$(l₀)_g=$(g)_z=$Z.jld2";ψs,Cs,C1s,C2s,zs,zs_scatter,g,l₀)
-save("Gifs/l=$(l₀)_g=$(g)_z=$Z.gif",FreeParaxialPropagation.animate(ψs,ratio=.5))
-##
-
-function make_plot(zs,zs_scatter,Cs,Ds,g,show_tick_legend,isfirst)
-    p = plot(zs,Cs,
-    ylabel=L"100 \times |C_{p%$l₀} \ |/g ",
-    yformatter = y->100*y,
-    annotations = ((.15,.85), Plots.text(L"g=%$g",12)),size=(354,200),left_margin=4Plots.mm)
-
-    if isfirst
-        plot!(p,title="(b)")
-    end
-
-    if show_tick_legend
-        plot!(xlabel=L"Z",xformatter = x->x,bottom_margin=-3Plots.mm)
-    else
-        plot!(p,xformatter=_->"",bottom_margin=-8.1Plots.mm)
-    end
-
-    scatter!(p,zs_scatter,Ds,line=:dash,marker=:diamond)
-end
-
-ps = []
-
-for g ∈ (1,10,80)
-    _load(name) = load("Data/l=2_g=$(g)_z=8.jld2",name)
-    push!(ps,make_plot(_load("zs"),_load("zs_scatter"),
-    _load("Cs"),_load("C2s"),g,length(ps)==2,length(ps)==0))
-end
-
-p2 = plot(ps[1],ps[2],ps[3],layout=(3,1),size=(400,800))
-#png("Plots/big_plot.png")
-
-plot(p1,p2,layout=(1,2),size=(800,800))
+plot(p,q,size=(1200,400),left_margin = 8Plots.mm,bottom_margin=8Plots.mm)
