@@ -64,27 +64,27 @@ function get_Cs(g,l₀,Z,R)
     zs,zs_scatter,Cs,C1s,C2s
 end
 ##
-zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(.01,2,.1,5)
+zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(30,2,5,15)
 ##
 p = scatter(zs_scatter1,Cs,
-    xlabel=L"\tilde{z} \ \ \ \left(  \times \ 10^{-1}  \right)",
-    ylabel=L"| c_{p2} \ | \ \ \ \left(  \times \ 10^{-3}  \right)",
-    xformatter = x->10*x,
-    yformatter = y->1000*y,
-    annotations = ((.15,.85), Plots.text(L"(a)",18)),
+    xlabel=L"\tilde{z}",
+    ylabel=L"| c_{p2} \ | \ \ \ \left(  \times \ 10^{-2}  \right)",
+    xformatter = x->x,
+    yformatter = y->100*y,
+    annotations = ((.15,.85), Plots.text(L"g=30",18)),
     marker=:diamond,
-    xticks = (0:.02:.1)
+    xticks=(0:1.0:5,[L"%$x" for x in 0:1.0:5])
     )
-plot!(p,zs1,C1s)
+plot!(p,zs1,C2s)
 ##
-zs2,zs_scatter2,Ds,D1s,D2s = get_Cs(.01,2,5,15)
+zs2,zs_scatter2,Ds,D1s,D2s = get_Cs(-30,2,5,15)
 ##
 q = scatter(zs_scatter2,Ds,
     xlabel=L"\tilde{z}",
     ylabel=L"| c_{p2} \ | \ \ \ \left(  \times \ 10^{-2}  \right)",
     xformatter = x->x,
     yformatter = y->100*y,
-    annotations = ((.15,.85), Plots.text(L"(b)",18)),
+    annotations = ((.15,.85), Plots.text(L"g=-30",18)),
     marker=:diamond,
     xticks=(0:1.0:5,[L"%$x" for x in 0:1.0:5])
 )
