@@ -1,22 +1,22 @@
-using FreeParaxialPropagation,KerrPropagation,CUDA
-
-
-λ = 780e-9
-k = 2π/λ
-w0 = 1.6e-3
-zr = k * w0^2 / 2
-g = -1000
-
-rs = LinRange(-8*w0,8*w0,1024)
-zs = LinRange(0,7e-2,2)
-ψ₀ = lg(rs,rs,0,w0=w0,l=2) |> CuArray
-
-ψs = kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=k)
-ψ0s = free_propagation(ψ₀,rs,rs,zs,k=k)
-δψs = (ψs - ψ0s)
-
-vizualize((@view δψs[:,:,end]))
+using FreeParaxialPropagation,KerrPropagation,CUDA,Tullio
 ##
-far_ψ = free_propagation((@view δψs[:,:,end]),rs,rs,1.8*zr,k=k)
+N = 2048
+rs = LinRange(-20,20,N)
 
-vizualize(far_ψ)
+function get_beam(rs,n,m)
+    ψ₀ = lg(rs,rs,0)
+    @tullio ψ₀[j,k] = ψ₀[j,k] * cis(- 2π*n * exp( -m*( rs[j]^2 + rs[k]^2 )) )
+end
+##
+ψ₀ = get_beam(rs,1,2) |> cu
+vizualize(ψ₀)
+ψ = free_propagation(ψ₀,rs,rs,3,k=2)
+vizualize(ψ)
+##
+g(n) = 800π * n
+gaussian = lg(rs,rs,0)|> cu
+ψ₀ = kerr_propagation(gaussian,rs,rs,LinRange(0,.01,4),2048,k=2,g=-g(1))[:,:,end]
+vizualize(ψ₀)
+ψ = free_propagation(ψ₀,rs,rs,LinRange(0,4,64),k=2)
+animate(ψ)
+##

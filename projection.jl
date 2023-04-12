@@ -92,3 +92,21 @@ plot!(q,zs2,D2s)
 ##
 
 plot(p,q,size=(1200,400),left_margin = 10Plots.mm,bottom_margin=10Plots.mm)
+##
+g(n) = 800π * n
+zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(-g(1),0,.01,20)
+##
+default()
+default(label=false,width=4,size=(600,400), markersize = 6, msw=0, 
+palette=:Set1_3, tickfontsize=15, labelfontsize=18,xlabelfontsize=22,
+legendfontsize=12, fontfamily="Computer Modern",dpi=1000,grid=false,framestyle = :box)
+p = scatter(zs_scatter1,Cs,
+    xlabel=L"\tilde{z} \ \ \ \left(  \times \ 10^{-2}  \right)",
+    ylabel=L"| c_{p2} \ | \ \ \ \left(  \times \ 10^{-3}  \right)",
+    xformatter = x->100*x,
+    yformatter = y->1000*y,
+    annotations = ((.20,.85), Plots.text(L"g \ \ ≈-2500",18)),
+    marker=:diamond
+    )
+plot!(p,zs1,C2s)
+png("e")

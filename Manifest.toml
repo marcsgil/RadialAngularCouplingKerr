@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-rc1"
+julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "455cb9ab432cbded6f62e77c753efddd28b9be30"
+project_hash = "8c90ebefde8ff9ff2d4c2fd8c32213a549a8d552"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -250,6 +250,12 @@ deps = ["Mmap"]
 git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 version = "1.9.1"
+
+[[deps.DiffRules]]
+deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
+git-tree-sha1 = "a4ad7ef19d2cdc2eff57abbbe68032b1cd0bd8f8"
+uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
+version = "1.13.0"
 
 [[deps.Distances]]
 deps = ["LinearAlgebra", "SparseArrays", "Statistics", "StatsAPI"]
@@ -1370,6 +1376,12 @@ deps = ["Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "DefineS
 git-tree-sha1 = "c42fa452a60f022e9e087823b47e5a5f8adc53d5"
 uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
 version = "0.4.75"
+
+[[deps.Tullio]]
+deps = ["ChainRulesCore", "DiffRules", "LinearAlgebra", "Requires"]
+git-tree-sha1 = "7871a39eac745697ee512a87eeff06a048a7905b"
+uuid = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
+version = "0.3.5"
 
 [[deps.URIs]]
 git-tree-sha1 = "074f993b0ca030848b897beff716d93aca60f06a"
