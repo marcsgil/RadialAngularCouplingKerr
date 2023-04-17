@@ -39,3 +39,15 @@ plot(0:20,Ms,ylabel=L"\max \ | u_{0l} | ^ 3",xlabel=L"l",xticks=0:2:20,left_marg
 
 Ms[1]/Ms[3]
 png("Plots/power_decay2.png")
+##
+
+Ms_num = [2 * l^l * exp(-l) / factorial(l) / π for l in 0:20]
+plot!(0:20, Ms_num)
+##
+f1(x) = x^x * exp(-x) / factorial(x)
+f2(x) = 1/√(2π*x)
+ls = 0:10
+##
+plot(ls,f1.(ls),label = L"l^l e^{-l} / l!", xlabel = L"l")
+scatter!(ls,f2.(ls), label = L"1/\sqrt{2 \pi l} ")
+png("power")
