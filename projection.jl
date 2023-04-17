@@ -1,6 +1,5 @@
-using FreeParaxialPropagation
+using StructuredLight
 using CUDA
-using KerrPropagation
 using LinearAlgebra,JLD2
 
 using Plots,LaTeXStrings
@@ -93,20 +92,25 @@ plot!(q,zs2,D2s)
 
 plot(p,q,size=(1200,400),left_margin = 10Plots.mm,bottom_margin=10Plots.mm)
 ##
-g(n) = 800π * n
-zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(-g(1),0,.01,20)
+M = 2/π
+n = 2
+g = -4000
+l₀ = 5
+zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(g,l₀,.01,10)
 ##
 default()
 default(label=false,width=4,size=(600,400), markersize = 6, msw=0, 
-palette=:Set1_3, tickfontsize=15, labelfontsize=18,xlabelfontsize=22,
+palette= :Set1_5, tickfontsize=15, labelfontsize=18,xlabelfontsize=22,
 legendfontsize=12, fontfamily="Computer Modern",dpi=1000,grid=false,framestyle = :box)
+colors = palette(:Set1_9)[1:l₀+3]'
 p = scatter(zs_scatter1,Cs,
     xlabel=L"\tilde{z} \ \ \ \left(  \times \ 10^{-2}  \right)",
-    ylabel=L"| c_{p2} \ | \ \ \ \left(  \times \ 10^{-3}  \right)",
+    ylabel=L"| c_{p%$l₀} \ | \ \ \ \left(  \times \ 10^{-3}  \right)",
     xformatter = x->100*x,
     yformatter = y->1000*y,
-    annotations = ((.20,.85), Plots.text(L"g \ \ ≈-2500",18)),
-    marker=:diamond
+    annotations = ((.20,.85), Plots.text(L"g \ \ = %$g",18)),
+    marker=:diamond, color = colors
     )
-plot!(p,zs1,C2s)
-png("e")
+plot!(p,zs1,C2s,color = colors, label = reshape([L"p=%$(n-1)" for n in axes(Cs,2) ],1,size(Cs,2)),
+legend=:outerright)
+#png("e")

@@ -20,3 +20,19 @@ vizualize(ψ₀)
 ψ = free_propagation(ψ₀,rs,rs,LinRange(0,4,64),k=2)
 animate(ψ)
 ##
+rs = LinRange(-10,10,512)
+ψ₀ = lg(rs,rs,0,l=21)
+M = maximum(abs2,ψ₀)
+
+visualize(ψ₀)
+n = 2
+ψ₁ = kerr_propagation(ψ₀,rs,rs,.01*zᵣ,512,g=400*n*π/M);
+
+ψ = free_propagation(ψ₁,rs,rs,5,8)
+visualize(ψ)
+##
+
+Ms = [maximum(abs2,lg(rs,rs,l=l,p=0)) for l in 0:20]
+[sum(abs2,lg(rs,rs,l=l,p=0))*(rs[2]-rs[1])^2 for l in 0:20]
+
+plot(0:20,Ms,ylabel=L"\max \ | u_{0l} | ^ 2",xlabel=L"l",xticks=0:2:20)
