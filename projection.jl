@@ -1,5 +1,6 @@
 using StructuredLight
 using CUDA
+CUDA.allowscalar(false)
 using LinearAlgebra,JLD2
 
 using Plots,LaTeXStrings
@@ -54,16 +55,22 @@ function get_Cs(g,l₀,Z,R)
 
     ψ0s = free_propagation(ψ₀,rs,rs,zs_scatter,k=2)
     δψs = (ψs - ψ0s)/g
+
+    prod_approx(ψ,z) = ψ .* cis.( g * z * abs2.(ψ)/4 )
+
+    ψs_prod = map(prod_approx,eachslice(ψ0s,dims=3),zs_scatter) |> stack
+    δψs_prod = (ψs_prod - ψ0s)/g
                 
     Cs = stack(overlap(lg(rs,rs,zs_scatter,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
 
     C1s = [abs(C1(z,p,l₀)) for z in zs, p in 0:abs(l₀)]
     C2s = [abs(C2(z,p,l₀)) for z in zs, p in 0:abs(l₀)+2]
+    C3s = stack(overlap(lg(rs,rs,zs_scatter,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs_prod,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
     
-    zs,zs_scatter,Cs,C1s,C2s
+    zs,zs_scatter,Cs,C1s,C2s,C3s
 end
 ##
-zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(30,2,5,15)
+zs1,zs_scatter1,Cs,C1s,C2s,C3s = get_Cs(30,2,5,15)
 ##
 p = scatter(zs_scatter1,Cs,
     xlabel=L"\tilde{z}",
@@ -75,6 +82,7 @@ p = scatter(zs_scatter1,Cs,
     xticks=(0:1.0:5,[L"%$x" for x in 0:1.0:5])
     )
 plot!(p,zs1,C2s)
+#plot!(p,zs_scatter1,C3s)
 ##
 zs2,zs_scatter2,Ds,D1s,D2s = get_Cs(-30,2,5,15)
 ##
@@ -96,7 +104,7 @@ rs = LinRange(-10,10,1024)
 l₀ = 3
 M = maximum(abs2,lg(rs,rs,l=l₀))
 g = - 800π/M
-zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(g,l₀,.01,10)
+zs1,zs_scatter1,Cs,C1s,C2s,C3s = get_Cs(g,l₀,.01,10)
 ##
 default()
 default(label=false,width=4,size=(700,400), markersize = 6, msw=0, 
@@ -114,6 +122,9 @@ p = scatter(zs_scatter1,Cs,
     bottom_margin = 5Plots.mm,
     xticks=(0:.002:.01)
     )
-plot!(p,zs1,C2s,color = colors, label = reshape([L"p=%$(n-1)" for n in axes(Cs,2) ],1,size(Cs,2)),
+#=plot!(p,zs1,C2s,color = colors, label = reshape([L"p=%$(n-1)" for n in axes(Cs,2) ],1,size(Cs,2)),
+legend=:outerright)=#
+plot!(p,zs_scatter1,C3s,color = colors, label = reshape([L"p=%$(n-1)" for n in axes(Cs,2) ],1,size(Cs,2)),
 legend=:outerright)
-png("Plots/ExperimentComparison/l=$l₀")
+png("Plots/ExperimentComparison/product_approx_l=$l₀")
+##
