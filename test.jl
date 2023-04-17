@@ -32,7 +32,10 @@ n = 2
 visualize(ψ)
 ##
 
-Ms = [maximum(abs2,lg(rs,rs,l=l,p=0)) for l in 0:20]
+Ms = [maximum(x->abs2(x)^(3/2),lg(rs,rs,l=l,p=0)) for l in 0:20]
 [sum(abs2,lg(rs,rs,l=l,p=0))*(rs[2]-rs[1])^2 for l in 0:20]
 
-plot(0:20,Ms,ylabel=L"\max \ | u_{0l} | ^ 2",xlabel=L"l",xticks=0:2:20)
+plot(0:20,Ms,ylabel=L"\max \ | u_{0l} | ^ 3",xlabel=L"l",xticks=0:2:20,left_margin=2Plots.mm)
+
+Ms[1]/Ms[3]
+png("Plots/power_decay2.png")
