@@ -48,7 +48,7 @@ function get_Cs(g,l₀,Z,R)
     zs = LinRange(0,Z,64)
     zs_scatter = LinRange(0,Z,length(zs)÷4)
 
-    ψ₀ = lg(rs,rs,0,l=l₀) |> CuArray
+    ψ₀ = lg(rs,rs,l=l₀) |> CuArray
     ψs = kerr_propagation(ψ₀,rs,rs,zs_scatter,2048,g=g,k=2)
 
 
@@ -92,25 +92,28 @@ plot!(q,zs2,D2s)
 
 plot(p,q,size=(1200,400),left_margin = 10Plots.mm,bottom_margin=10Plots.mm)
 ##
-M = 2/π
-n = 2
-g = -4000
-l₀ = 5
+rs = LinRange(-10,10,1024)
+l₀ = 3
+M = maximum(abs2,lg(rs,rs,l=l₀))
+g = - 800π/M
 zs1,zs_scatter1,Cs,C1s,C2s = get_Cs(g,l₀,.01,10)
 ##
 default()
-default(label=false,width=4,size=(600,400), markersize = 6, msw=0, 
+default(label=false,width=4,size=(700,400), markersize = 6, msw=0, 
 palette= :Set1_5, tickfontsize=15, labelfontsize=18,xlabelfontsize=22,
 legendfontsize=12, fontfamily="Computer Modern",dpi=1000,grid=false,framestyle = :box)
 colors = palette(:Set1_9)[1:l₀+3]'
 p = scatter(zs_scatter1,Cs,
     xlabel=L"\tilde{z} \ \ \ \left(  \times \ 10^{-2}  \right)",
-    ylabel=L"| c_{p%$l₀} \ | \ \ \ \left(  \times \ 10^{-3}  \right)",
+    ylabel=L"| c_{p%$l₀} \ | \ \ \ \left(  \times \ 10^{-4}  \right)",
     xformatter = x->100*x,
-    yformatter = y->1000*y,
-    annotations = ((.20,.85), Plots.text(L"g \ \ = %$g",18)),
-    marker=:diamond, color = colors
+    yformatter = y->10000*y,
+    annotations = ((.30,.85), Plots.text(L"g \ \ \approx %$(round(g,sigdigits=2))",18)),
+    marker=:diamond, color = colors,
+    left_margin = 5Plots.mm,
+    bottom_margin = 5Plots.mm,
+    xticks=(0:.002:.01)
     )
 plot!(p,zs1,C2s,color = colors, label = reshape([L"p=%$(n-1)" for n in axes(Cs,2) ],1,size(Cs,2)),
 legend=:outerright)
-#png("e")
+png("Plots/ExperimentComparison/l=$l₀")
