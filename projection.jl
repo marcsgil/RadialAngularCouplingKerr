@@ -1,15 +1,17 @@
 using StructuredLight
 using CUDA
 CUDA.allowscalar(false)
-using LinearAlgebra,JLD2
+using LinearAlgebra,JLD2,QuadGK
 
 using Plots,LaTeXStrings
 
 default()
-default(label=false,width=4,size=(600,400), markersize = 6, msw=0, 
-palette=:Set1_5, tickfontsize=15, labelfontsize=18,xlabelfontsize=22,
+default(label=false,width=4, size=(700,400), markersize = 7, 
+msw=0, tickfontsize=15, labelfontsize=20,
 legendfontsize=12, fontfamily="Computer Modern",dpi=1000,grid=false,framestyle = :box)
-##
+
+magnitude(x) = floor(Int, log10(x))
+
 overlap(ψ₁,ψ₂,area_element) = area_element*abs(ψ₁ ⋅ ψ₂)
 
 function overlap(ψ₁::AbstractArray{T1,3},ψ₂::AbstractArray{T2,3},area_element) where {T1,T2}
@@ -44,87 +46,89 @@ function C2(z,p,l)
     sum( c(q,l) * Φ(z,r) * Λ(3,r,p,l) * Λ(3,r,q,l) for q in 0:abs(l), r in 0:10^3 ) * im / 4
 end
 
-function get_Cs(g,l₀,Z,R)
-    rs = LinRange(-R,R,1024)
-    zs = LinRange(0,Z,64)
-    zs_scatter = LinRange(0,Z,length(zs)÷4)
+function phase_propagation(rs,zs,l,g,free_ψs)
+    f(z) = lg(rs,rs,z,l=l,k=2)
+    integrand(z) = abs2.(f(z))
 
-    ψ₀ = lg(rs,rs,l=l₀) |> CuArray
-    ψs = kerr_propagation(ψ₀,rs,rs,zs_scatter,2048,g=g,k=2)
+    Zs = vcat(0,zs)
+    θs = Array{eltype(rs)}(undef,length(rs),length(rs),length(zs))
 
+    Threads.@threads for n in eachindex(zs)
+        θs[:,:,n] = quadgk(integrand,Zs[n],Zs[n+1]) |> first
+    end
 
-    ψ0s = free_propagation(ψ₀,rs,rs,zs_scatter,k=2)
-    δψs = (ψs - ψ0s)/g
+    θs = CuArray(θs)
 
-    prod_approx(ψ,z) = ψ .* cis.( g * z * abs2.(ψ)/4 )
+    cumsum!(θs,θs,dims=3)
 
-    ψs_prod = map(prod_approx,eachslice(ψ0s,dims=3),zs_scatter) |> stack
-    δψs_prod = (ψs_prod - ψ0s)/g
-                
-    Cs = stack(overlap(lg(rs,rs,zs_scatter,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
+    f(ψ,θ) = ψ .* cis.(g*θ/4)
 
-    C1s = [abs(C1(z,p,l₀)) for z in zs, p in 0:abs(l₀)]
-    C2s = [abs(C2(z,p,l₀)) for z in zs, p in 0:abs(l₀)+2]
-    C3s = stack(overlap(lg(rs,rs,zs_scatter,p=p,l=l₀,w0 = 1/√3,k=2)|> CuArray ,δψs_prod,(rs[2]-rs[1])^2) for p in 0:abs(l₀)+2)
-    
-    zs,zs_scatter,Cs,C1s,C2s,C3s
+    stack( map(f,eachslice(free_ψs,dims=3),eachslice(θs,dims=3)) )
+end
+
+function get_Cs(rs,zs,g,l)
+    GC.gc()
+    ψ₀ = lg(rs,rs,l=l) |> CuArray
+
+    free_ψs = free_propagation(ψ₀,rs,rs,zs,k=2)
+
+    phase_δψs = (phase_propagation(rs,zs,l,g,free_ψs) - free_ψs)/g
+
+    δψs = (kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=2) - free_ψs)/g
+
+    C2s = [abs(C2(z,p,l)) for z in zs, p in 0:abs(l)+2]
+
+    Cs = similar(C2s)
+    C1s = similar(C2s)
+
+    for p in axes(Cs,2)
+        ψs_proj = lg(rs,rs,zs,p=p-1,l=l,w0 = 1/√3,k=2)|> CuArray
+        Cs[:,p] = overlap(ψs_proj,δψs,(rs[2]-rs[1])^2)
+        C1s[:,p] = overlap(ψs_proj,phase_δψs,(rs[2]-rs[1])^2)
+    end
+
+    Cs,C1s,C2s
+end
+
+function make_plot(zs,Cs_line,Cs_scatter,pos,text,g,l)
+    Z = last(zs)
+    mag_x = magnitude(Z)
+    mag_y = magnitude(maximum(Cs))
+    colors = palette(:Set1_9)[1:l+3]'
+
+    if iszero(mag_x)
+        xlabel = L"\tilde{z}"
+    else
+        xlabel = L"\tilde{z} \ \ \ \left( \times \ 10^{%$(magnitude(Z))} \right)"
+    end
+
+    plot(zs,Cs_line,
+        color = colors,
+        xformatter = x-> x/10.0^mag_x,
+        xlabel = xlabel,
+        yformatter = y-> y/10.0^mag_y,
+        ylabel = L"\left| c_{p%$l} \right| \ \ \ \left( \times \ 10^{%$(magnitude(maximum(Cs)))} \right)",
+        annotations = (pos, Plots.text(text,18)),
+        label = reshape([L"p=%$p" for p in 0:l+2],1,l+3),
+        legend = :outerright,
+        bottom_margin = 4Plots.mm,
+        left_margin = 4Plots.mm
+    )
+    scatter!(zs[1:3:end],Cs_scatter[1:3:end,:],color=colors,marker=:diamond)
 end
 ##
-zs1,zs_scatter1,Cs,C1s,C2s,C3s = get_Cs(30,2,5,15)
+rs = LinRange(-15,15,512)
+zs = LinRange(0,1e-2,64)
+g_eff(g_l,l) = π / 2 * g_l * factorial( abs(l) ) / abs(l)^(abs(l)) / exp(-abs(l))
+g_l = 800π
+l = 2
+g = g_eff(g_l,l)
 ##
-p = scatter(zs_scatter1,Cs,
-    xlabel=L"\tilde{z}",
-    ylabel=L"| c_{p2} \ | \ \ \ \left(  \times \ 10^{-2}  \right)",
-    xformatter = x->x,
-    yformatter = y->100*y,
-    annotations = ((.15,.85), Plots.text(L"g=30",18)),
-    marker=:diamond,
-    xticks=(0:1.0:5,[L"%$x" for x in 0:1.0:5])
-    )
-plot!(p,zs1,C2s)
-#plot!(p,zs_scatter1,C3s)
+Cs,C1s,C2s = get_Cs(rs,zs,g,l)
 ##
-zs2,zs_scatter2,Ds,D1s,D2s = get_Cs(-30,2,5,15)
+make_plot(zs,C1s,Cs,(.2,.85),L"g_l=800 \pi",g,l)
+make_plot(zs,C2s,Cs,(.2,.85),L"g_l=800 \pi",g,l)
 ##
-q = scatter(zs_scatter2,Ds,
-    xlabel=L"\tilde{z}",
-    ylabel=L"| c_{p2} \ | \ \ \ \left(  \times \ 10^{-2}  \right)",
-    xformatter = x->x,
-    yformatter = y->100*y,
-    annotations = ((.15,.85), Plots.text(L"g=-30",18)),
-    marker=:diamond,
-    xticks=(0:1.0:5,[L"%$x" for x in 0:1.0:5])
-)
-plot!(q,zs2,D2s)
-##
-
-plot(p,q,size=(1200,400),left_margin = 10Plots.mm,bottom_margin=10Plots.mm)
-##
-rs = LinRange(-10,10,1024)
-l₀ = 3
-M = maximum(abs2,lg(rs,rs,l=l₀))
-g = - 800π/M
-zs1,zs_scatter1,Cs,C1s,C2s,C3s = get_Cs(g,l₀,.01,10)
-##
-default()
-default(label=false,width=4,size=(700,400), markersize = 6, msw=0, 
-palette= :Set1_5, tickfontsize=15, labelfontsize=18,xlabelfontsize=22,
-legendfontsize=12, fontfamily="Computer Modern",dpi=1000,grid=false,framestyle = :box)
-colors = palette(:Set1_9)[1:l₀+3]'
-p = scatter(zs_scatter1,Cs,
-    xlabel=L"\tilde{z} \ \ \ \left(  \times \ 10^{-2}  \right)",
-    ylabel=L"| c_{p%$l₀} \ | \ \ \ \left(  \times \ 10^{-4}  \right)",
-    xformatter = x->100*x,
-    yformatter = y->10000*y,
-    annotations = ((.30,.85), Plots.text(L"g \ \ \approx %$(round(g,sigdigits=2))",18)),
-    marker=:diamond, color = colors,
-    left_margin = 5Plots.mm,
-    bottom_margin = 5Plots.mm,
-    xticks=(0:.002:.01)
-    )
-#=plot!(p,zs1,C2s,color = colors, label = reshape([L"p=%$(n-1)" for n in axes(Cs,2) ],1,size(Cs,2)),
-legend=:outerright)=#
-plot!(p,zs_scatter1,C3s,color = colors, label = reshape([L"p=%$(n-1)" for n in axes(Cs,2) ],1,size(Cs,2)),
-legend=:outerright)
-png("Plots/ExperimentComparison/product_approx_l=$l₀")
-##
+ψ₀ = lg(rs,rs,l=l) |> cu
+ψs = kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=2)
+show_animation(ψs,ratio=1/4)
