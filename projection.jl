@@ -38,7 +38,7 @@ function Φ(z,p)
     iszero(p) ? atan(z) : ( 1- ( (1-im*z)/(1+im*z) )^p ) / (2im*p)
 end
 
-function C1(z,p,l)
+function C3(z,p,l)
     im * z * c(p,l) / 4
 end
 
@@ -77,6 +77,7 @@ function get_Cs(rs,zs,g,l)
     δψs = (kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=2) - free_ψs)/g
 
     C2s = [abs(C2(z,p,l)) for z in zs, p in 0:abs(l)+2]
+    C3s = [abs(C3(z,p,l)) for z in zs, p in 0:abs(l)+2]
 
     Cs = similar(C2s)
     C1s = similar(C2s)
@@ -116,19 +117,40 @@ function make_plot(zs,Cs_line,Cs_scatter,pos,text,g,l)
     )
     scatter!(zs[1:3:end],Cs_scatter[1:3:end,:],color=colors,marker=:diamond)
 end
+
+g_eff(g_l,l) = g_l * factorial( abs(l) ) / abs(l)^(abs(l)) / exp(-abs(l))
 ##
-rs = LinRange(-15,15,512)
-zs = LinRange(0,1e-2,64)
-g_eff(g_l,l) = π / 2 * g_l * factorial( abs(l) ) / abs(l)^(abs(l)) / exp(-abs(l))
-g_l = 800π
+rs = LinRange(-15,15,1024)
+zs = LinRange(0,5,64)
+
+g_l = 1
 l = 2
 g = g_eff(g_l,l)
 ##
 Cs,C1s,C2s = get_Cs(rs,zs,g,l)
 ##
-make_plot(zs,C1s,Cs,(.2,.85),L"g_l=800 \pi",g,l)
-make_plot(zs,C2s,Cs,(.2,.85),L"g_l=800 \pi",g,l)
+make_plot(zs,C1s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
+png("Plots/phase_g_l=$g_l,l=$l")
+make_plot(zs,C2s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
+png("Plots/analytic_g_l=$g_l,l=$l")
 ##
-ψ₀ = lg(rs,rs,l=l) |> cu
-ψs = kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=2)
-show_animation(ψs,ratio=1/4)
+#Experiment
+w0 = 1.7e-3
+λ = 780e-9
+k = 2π/λ
+zᵣ = k * w0^2 / 2
+z = 7e-2
+z/zᵣ
+Δϕ = π
+zs = LinRange(0,1e-2,64)
+rs = LinRange(-6,6,512)
+g_l = round(-2π * Δϕ / (z/zᵣ), sigdigits=2) |> Int
+l = 2
+g = g_eff(g_l,l)
+##
+Cs,C1s,C2s = get_Cs(rs,zs,g,l)
+##
+make_plot(zs,C1s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
+png("Plots/phase_g_l=$g_l,l=$l")
+make_plot(zs,C2s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
+png("Plots/analytic_g_l=$g_l,l=$l")
