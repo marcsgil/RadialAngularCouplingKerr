@@ -72,7 +72,7 @@ function get_Cs(rs,zs,g,l)
 
     free_ψs = free_propagation(ψ₀,rs,rs,zs,k=2)
 
-    phase_δψs = (phase_propagation(rs,zs,l,g,free_ψs) - free_ψs)/g
+    #phase_δψs = (phase_propagation(rs,zs,l,g,free_ψs) - free_ψs)/g
 
     δψs = (kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=2) - free_ψs)/g
 
@@ -85,10 +85,10 @@ function get_Cs(rs,zs,g,l)
     for p in axes(Cs,2)
         ψs_proj = lg(rs,rs,zs,p=p-1,l=l,w0 = 1/√3,k=2)|> CuArray
         Cs[:,p] = overlap(ψs_proj,δψs,(rs[2]-rs[1])^2)
-        C1s[:,p] = overlap(ψs_proj,phase_δψs,(rs[2]-rs[1])^2)
+        #C1s[:,p] = overlap(ψs_proj,phase_δψs,(rs[2]-rs[1])^2)
     end
 
-    Cs,C1s,C2s
+    Cs,C1s,C2s,C3s
 end
 
 function make_plot(zs,Cs_line,Cs_scatter,pos,text,g,l)
@@ -113,7 +113,10 @@ function make_plot(zs,Cs_line,Cs_scatter,pos,text,g,l)
         label = reshape([L"p=%$p" for p in 0:l+2],1,l+3),
         legend = :outerright,
         bottom_margin = 4Plots.mm,
-        left_margin = 4Plots.mm
+        left_margin = 4Plots.mm,
+        xticks = 0:Z/5:Z,
+        legendfontsize=16,
+        size=(700,400)
     )
     scatter!(zs[1:3:end],Cs_scatter[1:3:end,:],color=colors,marker=:diamond)
 end
@@ -121,15 +124,14 @@ end
 g_eff(g_l,l) = g_l * factorial( abs(l) ) / abs(l)^(abs(l)) / exp(-abs(l))
 ##
 rs = LinRange(-15,15,1024)
-zs = LinRange(0,5,64)
+zs = LinRange(0,.1,64)
 
-g_l = 1
+g = 1e-2
 l = 2
-g = g_eff(g_l,l)
 ##
-Cs,C1s,C2s = get_Cs(rs,zs,g,l)
+Cs,C1s,C2s,C3s = get_Cs(rs,zs,g,l)
 ##
-make_plot(zs,C1s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
+make_plot(zs,C3s,Cs,(.15,.85),L"(a)",g,l)
 png("Plots/phase_g_l=$g_l,l=$l")
 make_plot(zs,C2s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
 png("Plots/analytic_g_l=$g_l,l=$l")
@@ -143,14 +145,30 @@ z = 7e-2
 z/zᵣ
 Δϕ = π
 zs = LinRange(0,1e-2,64)
-rs = LinRange(-6,6,512)
+rs = LinRange(-4,4,512)
 g_l = round(-2π * Δϕ / (z/zᵣ), sigdigits=2) |> Int
-l = 2
+l = 0
 g = g_eff(g_l,l)
 ##
 Cs,C1s,C2s = get_Cs(rs,zs,g,l)
 ##
 make_plot(zs,C1s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
+vline!([z/zᵣ],line=(:dash,:black))
+plot!(ψ_image,
+    xticks=false,
+    yticks=false,
+    framestyle=:none,
+    inset=bbox(0.7, 0.2, 0.3, 0.3), subplot=2)
+
+##
 png("Plots/phase_g_l=$g_l,l=$l")
 make_plot(zs,C2s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
 png("Plots/analytic_g_l=$g_l,l=$l")
+##
+ψ₀ = lg(rs,rs,l=l) |> CuArray
+ψ = kerr_propagation(ψ₀,rs,rs,zs,2048,g=g,k=2)
+
+show_animation(ψ)
+##
+plot( 1:5 )
+plot!( -5:8, (-5:8).^2, inset = (1, bbox(0.1,0.0,0.4,0.4)), subplot = 2)
