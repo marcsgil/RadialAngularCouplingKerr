@@ -1,7 +1,7 @@
 using StructuredLight,QuadGK,CUDA,LinearAlgebra
-
-using Plots,LaTeXStrings
 ##
+using Plots,LaTeXStrings
+
 default()
 default(label=false,width=4,size=(600,400), markersize = 6, msw=0, 
 palette=:Set1_5, tickfontsize=15, labelfontsize=18,xlabelfontsize=22,

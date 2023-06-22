@@ -12,12 +12,6 @@ legendfontsize=12, fontfamily="Computer Modern",dpi=1000,grid=false,framestyle =
 
 magnitude(x) = floor(Int, log10(x))
 
-overlap(ψ₁,ψ₂,area_element) = area_element*abs(ψ₁ ⋅ ψ₂)
-
-function overlap(ψ₁::AbstractArray{T1,3},ψ₂::AbstractArray{T2,3},area_element) where {T1,T2}
-    map( (a,b) -> overlap(a,b,area_element), eachslice(ψ₁,dims=3), eachslice(ψ₂,dims=3) )
-end
-
 function Λ(η,p,q,l)
     L = abs(l)
     if q ≥ p
@@ -47,8 +41,7 @@ function C2(z,p,l)
 end
 
 function phase_propagation(rs,zs,l,g,free_ψs)
-    f(z) = lg(rs,rs,z,l=l,k=2)
-    integrand(z) = abs2.(f(z))
+    integrand(z) = lg(rs,rs,z,l=l,k=2) .|> abs2
 
     Zs = vcat(0,zs)
     θs = Array{eltype(rs)}(undef,length(rs),length(rs),length(zs))
@@ -61,13 +54,12 @@ function phase_propagation(rs,zs,l,g,free_ψs)
 
     cumsum!(θs,θs,dims=3)
 
-    f(ψ,θ) = ψ .* cis.(g*θ/4)
+    f(ψ,θ) = @. ψ * cis(g*θ/4)
 
     stack( map(f,eachslice(free_ψs,dims=3),eachslice(θs,dims=3)) )
 end
 
 function get_Cs(rs,zs,g,l)
-    GC.gc()
     ψ₀ = lg(rs,rs,l=l) |> CuArray
 
     free_ψs = free_propagation(ψ₀,rs,rs,zs,k=2)
@@ -84,7 +76,7 @@ function get_Cs(rs,zs,g,l)
 
     for p in axes(Cs,2)
         ψs_proj = lg(rs,rs,zs,p=p-1,l=l,w0 = 1/√3,k=2)|> CuArray
-        Cs[:,p] = overlap(ψs_proj,δψs,(rs[2]-rs[1])^2)
+        Cs[:,p] = overlap(ψs_proj,δψs,rs,rs) .|> abs
         #C1s[:,p] = overlap(ψs_proj,phase_δψs,(rs[2]-rs[1])^2)
     end
 
@@ -108,7 +100,7 @@ function make_plot(zs,Cs_line,Cs_scatter,pos,text,g,l)
         xformatter = x-> x/10.0^mag_x,
         xlabel = xlabel,
         yformatter = y-> y/10.0^mag_y,
-        ylabel = L"\left| c_{p%$l} \right| \ \ \ \left( \times \ 10^{%$(magnitude(maximum(Cs)))} \right)",
+        ylabel = L"\left| c_{p%$l} \right| \ \ \ \left( \ 10^{%$(magnitude(maximum(Cs)))} \right)",
         annotations = (pos, Plots.text(text,18)),
         label = reshape([L"p=%$p" for p in 0:l+2],1,l+3),
         legend = :outerright,
@@ -124,16 +116,16 @@ end
 g_eff(g_l,l) = g_l * factorial( abs(l) ) / abs(l)^(abs(l)) / exp(-abs(l))
 ##
 rs = LinRange(-15,15,1024)
-zs = LinRange(0,.1,64)
+zs = LinRange(0,0.1,64)
 
-g = 1e-2
+g = 0.01
 l = 2
 ##
 Cs,C1s,C2s,C3s = get_Cs(rs,zs,g,l)
 ##
 make_plot(zs,C3s,Cs,(.15,.85),L"(a)",g,l)
 png("Plots/phase_g_l=$g_l,l=$l")
-make_plot(zs,C2s,Cs,(.2,.85),L"g_l=%$g_l",g,l)
+make_plot(zs,C2s,Cs,(.2,.85),L"g_l=%$1",g,l)
 png("Plots/analytic_g_l=$g_l,l=$l")
 ##
 #Experiment
